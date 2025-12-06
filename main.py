@@ -736,10 +736,17 @@ class Experiment:
         eval_start = time.time()
         self.model.eval()
         outputs = {}
-        rcsl_table = wandb.Table(columns=["target_coef", "Performance"])
+        rcsl_table = wandb.Table(columns=["Target Performance", "Actual Performance"], allow_mixed_types=True) #Normalised scores 
+        rcsl_error_table = wandb.Table(columns=["Target Return", "MSE"], allow_mixed_types=True) #Mean Squared Error(MSE) L2
+        rcsl_std_table = wandb.Table(columns=["Target Return", "STD"], allow_mixed_types=True) #Standard Deviation(STD)
+
+        rcsl_mean_length = wandb.Table(columns=["Target Return", "Mean Length"], allow_mixed_types=True) #Mean Length of episodes
+        rcsl_std_length = wandb.Table(columns=["Target Return", "STD Length"], allow_mixed_types=True) #STD of Length of episodes
+        
         rc_loss = 0
 
-        for eval_rtg_coef in [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]:
+
+        for eval_rtg_coef in [0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9, 1.0]:
             
             eval_rtg = self.variant["eval_rtg"] * eval_rtg_coef
             print(f"Evaluating on eval_rtg_coef: {eval_rtg_coef}, ({eval_rtg})")
@@ -761,16 +768,37 @@ class Experiment:
                 )
             ] * int(100 / self.variant["num_eval_rollouts"])
             score_mean_gms = []
+            lengths_gm = []
+            std_lengths = []
             for eval_fn in eval_fns:
                 o = eval_fn(self.model)
-                score_mean_gms.append(o["evaluation/score_mean_gm"])            
-            rcsl_table.add_data(eval_rtg_coef,np.mean(score_mean_gms))
-            rc_loss += (np.mean(score_mean_gms) - (get_normalized_score(self.variant["env"],eval_rtg)*100) )**2
+                score_mean_gms.append(o["evaluation/score_mean_gm"])    
+                lengths_gm.append(o["evaluation/length_mean_gm"])
+                std_lengths.append(o["evaluation/length_std_gm"])
+
+            mean_scores, std_scores = np.mean(score_mean_gms), np.std(score_mean_gms) 
+            mean_length, std_length = np.mean(lengths_gm), np.std(std_lengths)
+
+            target_performance = get_normalized_score(self.variant["env"], eval_rtg) * 100
+            rc_error = (target_performance - mean_scores)**2
+
+            rcsl_table.add_data(target_performance, mean_scores)
+            rcsl_error_table.add_data(eval_rtg, rc_error)
+
+            rcsl_std_table.add_data(eval_rtg, std_scores)
+            rcsl_mean_length.add_data(eval_rtg, mean_length)
+            rcsl_std_length.add_data(eval_rtg, std_length)
+
+            rc_loss += rc_error
         
         step = self.pretrain_iter + self.train_iter
-        outputs[f'rcsl_evaluation/Performance_vs_target_step_{step}'] = rcsl_table
-        outputs["rcsl_evaluation/rc_loss"] = rc_loss
-
+        outputs['rcsl_evaluation/RCSL Error Table'] = rcsl_error_table
+        outputs["rcsl_evaluation/RCSL Table"] = rcsl_table
+        outputs['rcsl_evaluation/RCSL std Table'] = rcsl_std_table 
+        outputs["rcsl_evaluation/RCSL total loss"] = rc_loss
+        outputs["rcsl_evaluation/RCSL mean length"] = rcsl_mean_length
+        outputs["rcsl_evaluation/RCSL std length"] = rcsl_std_length
+        
         return outputs
                                
 

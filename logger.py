@@ -26,20 +26,18 @@ class Logger:
         outputs["evaluation/total_transitions_sampled"] = total_transitions_sampled
 
         rcsl_outputs = {}
-        pattern = re.compile(r"^rcsl_evaluation/Performance_vs") # only tables
+        pattern = re.compile(r"^rcsl_evaluation/") # only tables
         rcsl_outputs = {k:v for k,v in outputs.items() if pattern.match(k)}
         outputs = {k: v for k,v in outputs.items() if k not in rcsl_outputs.keys()}
+        
         for k, v in outputs.items():
             print(f"{k}: {v}")
+        
+        for k, v in rcsl_outputs.items():
+            print(f"{k}: {v}")
 
-        if not self.no_wandb:
-            wandb.log(outputs, step=iter_num, commit=True)
-
-        if len(rcsl_outputs.items())>0:
-            for k,v in rcsl_outputs.items():
-                wandb.log({
-                    k : wandb.plot.line(v, "target_coef","Performance",title="RC Performance")
-                })
+        wandb.log(outputs, step=iter_num, commit=False)
+        wandb.log(rcsl_outputs, step=iter_num, commit=True)
             
     def create_log_path(self, variant):
         now = datetime.now().strftime("%Y.%m.%d/%H%M%S")
