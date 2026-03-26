@@ -6,6 +6,12 @@ LICENSE.md file in the root directory of this source tree.
 """
 
 import os
+os.environ["WANDB_MODE"] = "offline"
+os.environ["WANDB_START_METHOD"] = "thread"
+os.environ["WANDB_DIR"] = "/tmp/wandb"
+os.environ["WANDB_CACHE_DIR"] = "/tmp/wandb_cache"
+os.environ["WANDB_CONFIG_DIR"] = "/tmp/wandb_config"
+
 import sys
 import argparse
 import pickle
@@ -34,12 +40,6 @@ from d4rl import get_normalized_score
 MAX_EPISODE_LEN = 1000
 NUM_PASSED_STEPS = 20
 master_work_dir = '.'
-
-os.environ["WANDB_MODE"] = "offline"
-os.environ["WANDB_START_METHOD"] = "thread"
-os.environ["WANDB_DIR"] = "/tmp/wandb"
-os.environ["WANDB_CACHE_DIR"] = "/tmp/wandb_cache"
-os.environ["WANDB_CONFIG_DIR"] = "/tmp/wandb_config"
 
 
 import wandb
@@ -164,6 +164,7 @@ class Experiment:
                 config=variant,
                 tags=[],
                 reinit=True,
+                settings=wandb.Settings(start_method="thread")
             )
             print(f"wandb initialized")
         self.logger = Logger(variant)
