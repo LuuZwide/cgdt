@@ -15,7 +15,7 @@ import gym
 import d4rl
 import torch
 import numpy as np
-import wandb
+
 
 import utils
 from copy import deepcopy
@@ -36,6 +36,13 @@ NUM_PASSED_STEPS = 20
 master_work_dir = '.'
 
 os.environ["WANDB_MODE"] = "offline"
+os.environ["WANDB_START_METHOD"] = "thread"
+os.environ["WANDB_DIR"] = "/tmp/wandb"
+os.environ["WANDB_CACHE_DIR"] = "/tmp/wandb_cache"
+os.environ["WANDB_CONFIG_DIR"] = "/tmp/wandb_config"
+
+
+import wandb
 
 class Experiment:
     def __init__(self, variant):
