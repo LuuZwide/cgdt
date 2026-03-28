@@ -6,8 +6,6 @@ LICENSE.md file in the root directory of this source tree.
 """
 
 import os
-os.environ["WANDB_START_METHOD"] = "thread"
-
 import sys
 import argparse
 import pickle
@@ -16,6 +14,7 @@ import time
 import gym
 import d4rl
 import torch
+import wandb
 import numpy as np
 
 
@@ -36,9 +35,7 @@ from d4rl import get_normalized_score
 MAX_EPISODE_LEN = 1000
 NUM_PASSED_STEPS = 20
 master_work_dir = '.'
-
-
-import wandb
+os.environ["WANDB_MODE"] = "offline"
 
 class Experiment:
     def __init__(self, variant):
