@@ -156,8 +156,7 @@ class Experiment:
                 project="critic-guided-decision-transformer",
                 config=variant,
                 tags=[],
-                reinit=True,
-                settings=wandb.Settings(start_method="thread")
+                reinit=True
             )
             print(f"wandb initialized")
         self.logger = Logger(variant)
