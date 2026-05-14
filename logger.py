@@ -36,6 +36,9 @@ class Logger:
         for k, v in rcsl_outputs.items():
             print(f"{k}: {v}")
 
+        if self.no_wandb:
+            return
+
         wandb.log(outputs, step=iter_num, commit=False)
         wandb.log(rcsl_outputs, step=iter_num, commit=True)
             

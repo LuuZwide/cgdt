@@ -151,14 +151,18 @@ class Experiment:
                 variant["env"], "_delayed" if variant["delayed_reward"] else "", variant["tag"], variant["eval_rtg"], variant["online_rtg"], variant["max_pretrain_iters"], variant["max_train_iters"], variant["max_online_iters"]
             )
             variant["exp_name"] = name
-            wandb.init(
-                name="CGDT_"+variant["env"],
-                project="critic-guided-decision-transformer",
-                config=variant,
-                tags=[],
-                reinit=True
-            )
-            print(f"wandb initialized")
+            try:
+                wandb.init(
+                    name="CGDT_"+variant["env"] + "_" + variant["tag"],
+                    project="critic-guided-decision-transformer",
+                    config=variant,
+                    tags=[],
+                    reinit=True
+                )
+                print("wandb initialized")
+            except Exception as e:
+                variant["no_wandb"] = True
+                print(f"wandb init failed, continuing with no_wandb=True. Error: {e}")
         self.logger = Logger(variant)
 
     def _get_env_spec(self, variant):
@@ -328,6 +332,11 @@ class Experiment:
         with torch.no_grad():
             # generate init state
             target_return = [target_explore * self.reward_scale] * online_envs.num_envs
+
+            if randomized:
+                target_return =[
+                    random.uniform(0, target_explore) * self.reward_scale for _ in range(online_envs.num_envs)
+                ]
 
             returns, lengths, trajs = vec_evaluate_episode_rtg(
                 online_envs,
@@ -672,6 +681,7 @@ class Experiment:
                 online_envs,
                 self.variant["online_rtg"],
                 n=self.variant["num_online_rollouts"],
+                randomized=self.variant["randomized_target_return"]
             )
             outputs.update(augment_outputs)
 
@@ -1206,6 +1216,8 @@ if __name__ == "__main__":
     parser.add_argument('--no_wandb', action="store_true")
     parser.add_argument("--tag", type=str, default="tag")
     parser.add_argument("--num_workers", type=int, default=4)
+    parser.add_argument("--randomized_target_return", type=bool, default=False)
+
 
     args = parser.parse_args()
 
