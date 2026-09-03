@@ -165,6 +165,19 @@ class Experiment:
                 print(f"wandb init failed, continuing with no_wandb=True. Error: {e}")
         self.logger = Logger(variant)
 
+        resume_path = variant.get("resume_path")
+        if resume_path:
+            self._maybe_resume(resume_path)
+
+    def _maybe_resume(self, path_prefix):
+        checkpoint_path = Path(path_prefix)
+        if checkpoint_path.is_file():
+            checkpoint_path = checkpoint_path.parent
+        model_file = checkpoint_path / "model.pt"
+        if model_file.exists():
+            self._load_model(str(checkpoint_path))
+            print(f"Resuming from checkpoint: {model_file}")
+
     def _get_env_spec(self, variant):
         if "bernoulli-bandit" in variant["env"]:
             from decision_transformer.envs.bernoulli_bandit import BernoulliBanditEnv
@@ -194,6 +207,9 @@ class Experiment:
         return state_dim, act_dim, action_range, discrete_action
 
     def _save_model(self, path_prefix, is_pretrain_model=False):
+        path_prefix = Path(path_prefix)
+        path_prefix.mkdir(parents=True, exist_ok=True)
+
         to_save = {
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
@@ -222,14 +238,16 @@ class Experiment:
                 "best_pretrain_iter": self.best_pretrain_iter,
             })
 
-        with open(f"{path_prefix}/model.pt", "wb") as f:
+        model_path = path_prefix / "model.pt"
+        with open(model_path, "wb") as f:
             torch.save(to_save, f)
-        print(f"\nModel saved at {path_prefix}/model.pt")
+        print(f"\nModel saved at {model_path}")
 
         if is_pretrain_model:
-            with open(f"{path_prefix}/pretrain_model.pt", "wb") as f:
+            pretrain_model_path = path_prefix / "pretrain_model.pt"
+            with open(pretrain_model_path, "wb") as f:
                 torch.save(to_save, f)
-            print(f"Model saved at {path_prefix}/pretrain_model.pt")
+            print(f"Model saved at {pretrain_model_path}")
 
     def _load_model(self, path_prefix):
         if Path(f"{path_prefix}/model.pt").exists():
@@ -754,8 +772,6 @@ class Experiment:
         rcsl_std_length = wandb.Table(columns=["Target Return", "STD Length"], allow_mixed_types=True) #STD of Length of episodes
         
         rc_loss = 0
-
-
         for eval_rtg_coef in [0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9, 1.0]:
             
             eval_rtg = self.variant["eval_rtg"] * eval_rtg_coef
@@ -1213,6 +1229,7 @@ if __name__ == "__main__":
     parser.add_argument("--log_to_tb", "-w", type=bool, default=True)
     parser.add_argument("--save_dir", type=str, default="./exp")
     parser.add_argument("--exp_name", type=str, default="default")
+    parser.add_argument("--resume_path", type=str, default=None, help="Path to a checkpoint directory to resume from, e.g. ./exp/2025.01.01/123456-name/seed")
     parser.add_argument('--no_wandb', action="store_true")
     parser.add_argument("--tag", type=str, default="tag")
     parser.add_argument("--num_workers", type=int, default=4)
