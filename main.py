@@ -146,28 +146,30 @@ class Experiment:
         self.total_transitions_sampled = 0
         self.variant = variant
         self.reward_scale = 1.0 if "antmaze" in variant["env"] or "kitchen" in variant["env"] or "bandit" in variant["env"] else 0.001
+
+        resume_path = variant.get("resume_path")
+        if resume_path:
+            self._maybe_resume(resume_path)
+
         if not variant["no_wandb"]:
             name = "{}{}_{}_rtg_{}_{}_iters_{}_{}_{}".format(
                 variant["env"], "_delayed" if variant["delayed_reward"] else "", variant["tag"], variant["eval_rtg"], variant["online_rtg"], variant["max_pretrain_iters"], variant["max_train_iters"], variant["max_online_iters"]
             )
             variant["exp_name"] = name
-            try:
-                wandb.init(
-                    name="CGDT_"+variant["env"] + "_" + variant["tag"],
-                    project="critic-guided-decision-transformer",
-                    config=variant,
-                    tags=[],
-                    reinit=True
-                )
-                print("wandb initialized")
-            except Exception as e:
-                variant["no_wandb"] = True
-                print(f"wandb init failed, continuing with no_wandb=True. Error: {e}")
+            if self.variant.get("wandb_run_id") is None:
+                try:
+                    wandb.init(
+                        name="CGDT_"+variant["env"] + "_" + variant["tag"],
+                        project="critic-guided-decision-transformer",
+                        config=variant,
+                        tags=[],
+                        reinit=True
+                    )
+                    print("wandb initialized")
+                except Exception as e:
+                    variant["no_wandb"] = True
+                    print(f"wandb init failed, continuing with no_wandb=True. Error: {e}")
         self.logger = Logger(variant)
-
-        resume_path = variant.get("resume_path")
-        if resume_path:
-            self._maybe_resume(resume_path)
 
     def _maybe_resume(self, path_prefix):
         checkpoint_path = Path(path_prefix)
@@ -225,6 +227,9 @@ class Experiment:
             "log_temperature_optimizer_state_dict": self.log_temperature_optimizer.state_dict(),
             "best_train_iter": self.best_train_iter,
             "best_model_state_dict": self.best_model_state_dict,
+            "wandb_run_id": wandb.run.id if wandb.run is not None else self.variant.get("wandb_run_id"),
+            "aug_trajs": self.aug_trajs,
+            "replay_buffer_trajectories": self.replay_buffer.trajectories,
             "max_d4rl_score": self.max_d4rl_score,
         }
         if self.critic is not None:
@@ -279,6 +284,12 @@ class Experiment:
             np.random.set_state(checkpoint["np"])
             random.setstate(checkpoint["python"])
             torch.set_rng_state(checkpoint["pytorch"])
+            if "wandb_run_id" in checkpoint:
+                self.variant["wandb_run_id"] = checkpoint["wandb_run_id"]
+            if "aug_trajs" in checkpoint:
+                self.aug_trajs = checkpoint["aug_trajs"]
+            if "replay_buffer_trajectories" in checkpoint:
+                self.replay_buffer.trajectories = checkpoint["replay_buffer_trajectories"]
             print(f"Model loaded at {path_prefix}/model.pt")
 
     def _load_dataset(self, work_dir, env_name, no_reward=False, delayed_reward=False):
